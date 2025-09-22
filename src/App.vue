@@ -6,10 +6,14 @@ const filterBy = ref('skill');
 const isFilterBySkill = computed(() => filterBy.value === 'skill');
 
 // FILTER BY SKILL OPTIONS
-const examTypesFilter = ref([]);
+const { examType, skill } = Object.fromEntries(
+  new URLSearchParams(window.location.search).entries(),
+);
+
+const examTypesFilter = ref(examType ? [Number(examType)] : []);
 const difficultiesFilter = ref([1, 2, 3]);
 const calculatorFilter = ref(0);
-const skillsFilter = ref('');
+const skillsFilter = ref(skill ? skill : '');
 const parsedSkillsFilter = computed(() =>
   // convert string of skills into [{mainSkillInternalId, subskillLetter}...]
   skillsFilter.value.split(' ').map((id) => {
@@ -41,6 +45,7 @@ const parsedSkillsFilter = computed(() =>
 
 // FILTER BY PAPER
 const paperName = ref('');
+const examTypeId = ref();
 
 // FETCH QUESTIONS
 const filteredQuestions = computed(() => {
@@ -81,7 +86,10 @@ const filteredQuestions = computed(() => {
     return qs;
   } else {
     for (const e of exams) {
-      if (e.name === paperName.value) return e.questions;
+      if (e.name === paperName.value) {
+        examTypeId.value = e.parent;
+        return e.questions;
+      }
     }
   }
   return [];
@@ -148,6 +156,30 @@ function generateLinkToDFM(question) {
   const mainSkillInternalId = question.skillscache[0];
   const subskillLetter = question.subskill?.letter;
   return `https://www.drfrost.org/explorer.php?skid=${mainSkillInternalId}${subskillLetter ? `#subskillLetter=${subskillLetter}` : ''}`;
+}
+
+function generateLinkToSimilar(question) {
+  const mainSkillInternalId = question.skillscache[0];
+  const subskillLetter = question.subskill?.letter;
+
+  // map internal skill id to public one
+  let mainSkillPublicId;
+  for (const m of modules) {
+    for (const u of m.units) {
+      for (const s of u.skills) {
+        if (s.skid === mainSkillInternalId) {
+          mainSkillPublicId = s.publicid;
+        }
+      }
+    }
+  }
+
+  const queryString = new URLSearchParams({
+    examType: examTypeId.value,
+    calculator: 0,
+    skill: `${mainSkillPublicId}${subskillLetter ? subskillLetter : ''}`,
+  });
+  return `${window.location.hostname}?${queryString}`;
 }
 </script>
 
@@ -454,7 +486,13 @@ function generateLinkToDFM(question) {
             >
               Toggle Answer
             </button>
-            <button class="btn btn-secondary">Similar</button>
+            <a
+              :href="generateLinkToSimilar(q)"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              <button class="btn btn-secondary">Similar</button>
+            </a>
             <a
               :href="generateLinkToCorbett(q)"
               target="_blank"
