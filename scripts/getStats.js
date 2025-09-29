@@ -45,14 +45,14 @@ console.log(
   ),
 );
 
-console.log(
-  JSON.stringify(
-    Object.entries(mapUnitNamesToTotalMarks)
-      .sort((a, b) => a[1] - b[1])
-      .map((a) => [a[0], a[1], `${((a[1] / t) * 100).toFixed(2)}%`]),
-    null,
-    1,
-  ),
-);
+// console.log(
+//   JSON.stringify(
+//     Object.entries(mapUnitNamesToTotalMarks)
+//       .sort((a, b) => a[1] - b[1])
+//       .map((a) => [a[0], a[1], `${((a[1] / t) * 100).toFixed(2)}%`]),
+//     null,
+//     1,
+//   ),
+// );
 
 console.log(t);

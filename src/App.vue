@@ -1,15 +1,14 @@
 <script setup>
 import { ref, computed, watch, useTemplateRef, nextTick } from 'vue';
 import { exams, modules } from './data.json';
-// FILTER BY SKILL/PAPER
-const filterBy = ref('skill');
-const isFilterBySkill = computed(() => filterBy.value === 'skill');
-
-// FILTER BY SKILL OPTIONS
-const { examType, skill } = Object.fromEntries(
+// FILTER BY SKILL/PAPER/QUESTION IDS
+const { examType, skill, qids } = Object.fromEntries(
   new URLSearchParams(window.location.search).entries(),
 );
 
+const filterBy = ref(qids ? 'questionIds' : 'skill');
+
+// FILTER BY SKILL OPTIONS
 const examTypesFilter = ref(examType ? [Number(examType)] : []);
 const difficultiesFilter = ref([1, 2, 3]);
 const calculatorFilter = ref(0);
@@ -43,12 +42,16 @@ const parsedSkillsFilter = computed(() =>
   }),
 );
 
-// FILTER BY PAPER
+// FILTER BY PAPER OPTIONS
 const paperName = ref('');
 const examTypeId = ref();
 
+// FILTER BY QUESTION IDS OPTIONS
+const questionIds = ref(qids ? qids.split(',').map((x) => Number(x)) : []);
+
 // FETCH QUESTIONS
 const filteredQuestions = computed(() => {
+  let t = 0;
   if (filterBy.value === 'skill') {
     const qs = [];
     const qIdsAlreadyAdded = new Set();
@@ -84,13 +87,26 @@ const filteredQuestions = computed(() => {
       }
     }
     return qs;
-  } else {
+  } else if (filterBy.value === 'paper') {
     for (const e of exams) {
       if (e.name === paperName.value) {
         examTypeId.value = e.parent;
         return e.questions;
       }
     }
+  } else if (filterBy.value === 'questionIds') {
+    const qs = [];
+    const qIdsAlreadyAdded = new Set();
+    for (const e of exams) {
+      for (const q of e.questions) {
+        if (qIdsAlreadyAdded.has(q.qid)) continue;
+        if (questionIds.value.includes(q.qid)) {
+          qs.push(q);
+          qIdsAlreadyAdded.add(q.qid);
+        }
+      }
+    }
+    return qs.sort((a, b) => qids.indexOf(a.qid) - qids.indexOf(b.qid));
   }
   return [];
 });
@@ -193,10 +209,11 @@ function generateLinkToSimilar(question) {
       <select id="filter" class="select" v-model="filterBy">
         <option value="skill">...by skill</option>
         <option value="paper">...by paper</option>
+        <option value="questionIds">...by question ids</option>
       </select>
     </div>
 
-    <div v-if="isFilterBySkill">
+    <div v-if="filterBy === 'skill'">
       <div class="mb-10 flex flex-wrap gap-8">
         <fieldset
           class="fieldset bg-base-100 border-base-300 rounded-box flex-1 border p-4"
@@ -416,12 +433,13 @@ function generateLinkToSimilar(question) {
         Found <b>{{ filteredQuestions.length }}</b> matching questions
       </p>
     </div>
-    <div v-else class="mb-10">
+    <div v-if="skillsFilter === 'paper'" class="mb-10">
       <div class="min-w-[200px]">
         <h3 class="mb-3">Name:</h3>
         <input type="text" class="input w-full" v-model="paperName" />
       </div>
     </div>
+    <div v-else class="mb-10"></div>
 
     <div>
       <div
@@ -467,6 +485,9 @@ function generateLinkToSimilar(question) {
               <span v-if="q.difficulty">Difficulty: {{ q.difficulty }}/4</span>
               <span v-if="q.marks"
                 ><b>({{ q.marks }} marks)</b></span
+              >
+              <span v-if="q.qid"
+                ><b>(id={{ q.qid }})</b></span
               >
               <template v-if="q.img">
                 <span
